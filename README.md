@@ -60,6 +60,16 @@ Metadata supports:
 - `tags:{tag1, tag2}`
 - `timestamp:<ISO timestamp>`
 
+## Tests
+
+Run the unit tests with:
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+The same test command runs in GitHub Actions on pushes and pull requests.
+
 ## Notes
 
 - The tool recursively scans subdirectories by default

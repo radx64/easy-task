@@ -21,8 +21,33 @@ def iter_text_files(path: Path):
             continue
 
 
+def split_param_tokens(param_str: str):
+    tokens = []
+    current = []
+    brace_depth = 0
+    for char in param_str:
+        if char == '{':
+            brace_depth += 1
+        elif char == '}' and brace_depth > 0:
+            brace_depth -= 1
+
+        if char == ',' and brace_depth == 0:
+            token = ''.join(current).strip()
+            if token:
+                tokens.append(token)
+            current = []
+            continue
+
+        current.append(char)
+
+    token = ''.join(current).strip()
+    if token:
+        tokens.append(token)
+    return tokens
+
+
 def parse_param_tokens(param_str: str):
-    tokens = [t.strip() for t in param_str.split(',') if t.strip()]
+    tokens = split_param_tokens(param_str)
     taskid = None
     status = None
     tags = []
@@ -102,7 +127,11 @@ def collect_task_entries(path: Path):
             if m_line:
                 start = i
                 i += 1
-                while i < len(lines) and lines[i].lstrip().startswith('//'):
+                while (
+                    i < len(lines)
+                    and lines[i].lstrip().startswith('//')
+                    and not LINE_TASK_PATTERN.search(lines[i])
+                ):
                     i += 1
 
                 taskid, status, tags, _ = parse_param_tokens(m_line.group('params'))

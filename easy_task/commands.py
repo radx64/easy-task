@@ -38,7 +38,11 @@ def scan(path: Path):
                 start = i
                 task_lines = [lines[i]]
                 i += 1
-                while i < len(lines) and lines[i].lstrip().startswith('//'):
+                while (
+                    i < len(lines)
+                    and lines[i].lstrip().startswith('//')
+                    and not LINE_TASK_PATTERN.search(lines[i])
+                ):
                     task_lines.append(lines[i])
                     i += 1
 
@@ -131,7 +135,11 @@ def edit_task(path: Path, task_id: str):
                 start = i
                 task_lines = [lines[i]]
                 i += 1
-                while i < len(lines) and lines[i].lstrip().startswith('//'):
+                while (
+                    i < len(lines)
+                    and lines[i].lstrip().startswith('//')
+                    and not LINE_TASK_PATTERN.search(lines[i])
+                ):
                     task_lines.append(lines[i])
                     i += 1
                 existing_id, _, _, _ = parse_param_tokens(m_line.group('params'))
@@ -217,7 +225,11 @@ def stats(path: Path):
             m_block = BLOCK_TASK_PATTERN.search(line)
             if m_line:
                 i += 1
-                while i < len(lines) and lines[i].lstrip().startswith('//'):
+                while (
+                    i < len(lines)
+                    and lines[i].lstrip().startswith('//')
+                    and not LINE_TASK_PATTERN.search(lines[i])
+                ):
                     i += 1
                 existing_id, status, tags, _ = parse_param_tokens(m_line.group('params'))
                 total += 1
