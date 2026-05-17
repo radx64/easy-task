@@ -5,11 +5,11 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from easy_task.commands import edit_task, list_tasks, scan, stats
+from easy_task.commands import edit_task, list_tasks, scan, search_tasks, stats
 
 
 class CommandTests(unittest.TestCase):
-    def test_list_tasks_prints_plain_output_when_curses_unavailable(self):
+    def test_list_tasks_prints_plain_output_when_textual_unavailable(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / 'todos.list').write_text(
@@ -18,12 +18,54 @@ class CommandTests(unittest.TestCase):
             )
 
             output = io.StringIO()
-            with patch('easy_task.commands.curses_supported', return_value=False), redirect_stdout(output):
+            with patch('easy_task.commands.textual_supported', return_value=False), redirect_stdout(output):
                 list_tasks(root)
 
         self.assertEqual(output.getvalue(), '#T1 new script, feature todos.list:1 add task\n')
 
-    def test_stats_prints_plain_summary_when_curses_unavailable(self):
+    def test_search_tasks_filters_by_query(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'todos.list').write_text(
+                '\n'.join([
+                    '// TASK(#T1, status:new, tags: {script, feature}): add task',
+                    '// TASK(#T2, status:done, tags: {bug}): fix bug in script',
+                ]),
+                encoding='utf-8',
+            )
+
+            output = io.StringIO()
+            with patch('easy_task.commands.textual_supported', return_value=False), redirect_stdout(output):
+                search_tasks(root, 'script')
+
+        self.assertEqual(
+            output.getvalue(),
+            'Search expression: script\n'
+            '#T1 new script, feature todos.list:1 add task\n'
+            '#T2 done bug todos.list:2 fix bug in script\n'
+        )
+
+    def test_search_tasks_matches_multiline_description(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'todos.list').write_text(
+                '// TASK(#T1, status:new, tags: {script}): first line\n'
+                '// second line description\n'
+                '// third line detail\n',
+                encoding='utf-8',
+            )
+
+            output = io.StringIO()
+            with patch('easy_task.commands.textual_supported', return_value=False), redirect_stdout(output):
+                search_tasks(root, 'third')
+
+        self.assertEqual(
+            output.getvalue(),
+            'Search expression: third\n'
+            '#T1 new script todos.list:1 first line\n'
+        )
+
+    def test_stats_prints_plain_summary_when_textual_unavailable(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / 'todos.list').write_text(
@@ -35,7 +77,7 @@ class CommandTests(unittest.TestCase):
             )
 
             output = io.StringIO()
-            with patch('easy_task.commands.curses_supported', return_value=False), redirect_stdout(output):
+            with patch('easy_task.commands.textual_supported', return_value=False), redirect_stdout(output):
                 stats(root)
 
         text = output.getvalue()

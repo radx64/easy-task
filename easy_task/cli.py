@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from .commands import edit_task, list_tasks, scan, stats
+from .commands import edit_task, list_tasks, scan, search_tasks, stats
 
 
 def main():
@@ -31,6 +31,16 @@ def main():
         'path', nargs='?', default='.', help='Directory to scan (default: current directory)'
     )
 
+    search_parser = subparsers.add_parser(
+        'search', help='List TASK comments matching a search string'
+    )
+    search_parser.add_argument(
+        'query', help='Search string to filter tasks'
+    )
+    search_parser.add_argument(
+        'path', nargs='?', default='.', help='Directory to scan (default: current directory)'
+    )
+
     edit_parser = subparsers.add_parser(
         'edit', help='Edit the metadata of an existing TASK by ID'
     )
@@ -46,6 +56,8 @@ def main():
         scan(Path(args.path))
     elif args.command == 'list':
         list_tasks(Path(args.path))
+    elif args.command == 'search':
+        search_tasks(Path(args.path), args.query)
     elif args.command == 'stats':
         stats(Path(args.path))
     elif args.command == 'edit':

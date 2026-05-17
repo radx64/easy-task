@@ -126,30 +126,42 @@ def collect_task_entries(path: Path):
             m_block = BLOCK_TASK_PATTERN.search(line)
             if m_line:
                 start = i
+                task_lines = [lines[i]]
                 i += 1
                 while (
                     i < len(lines)
                     and lines[i].lstrip().startswith('//')
                     and not LINE_TASK_PATTERN.search(lines[i])
                 ):
+                    task_lines.append(lines[i])
                     i += 1
 
                 taskid, status, tags, _ = parse_param_tokens(m_line.group('params'))
                 if taskid:
                     file_label = str(file_path.relative_to(path))
+                    desc = m_line.group('desc').strip()
+                    body_lines = [desc]
+                    for extra_line in task_lines[1:]:
+                        trimmed = extra_line.lstrip()
+                        if trimmed.startswith('//'):
+                            trimmed = trimmed[2:].strip()
+                        body_lines.append(trimmed)
                     entries.append({
                         'taskid': taskid,
                         'status': status or 'new',
                         'tags': ', '.join(tags),
                         'file': f"{file_label}:{start + 1}",
-                        'desc': m_line.group('desc').strip(),
+                        'desc': desc,
+                        'body': ' '.join(body_lines).strip(),
                     })
                 continue
 
             if m_block:
                 start = i
+                task_lines = [lines[i]]
                 i += 1
                 while i < len(lines):
+                    task_lines.append(lines[i])
                     if '*/' in lines[i]:
                         i += 1
                         break
@@ -158,12 +170,22 @@ def collect_task_entries(path: Path):
                 taskid, status, tags, _ = parse_param_tokens(m_block.group('params'))
                 if taskid:
                     file_label = str(file_path.relative_to(path))
+                    desc = m_block.group('desc').strip()
+                    body_lines = [desc]
+                    for extra_line in task_lines[1:]:
+                        trimmed = extra_line.strip()
+                        if trimmed.endswith('*/'):
+                            trimmed = trimmed[:-2].rstrip()
+                        if trimmed.startswith('*'):
+                            trimmed = trimmed[1:].strip()
+                        body_lines.append(trimmed)
                     entries.append({
                         'taskid': taskid,
                         'status': status or 'new',
                         'tags': ', '.join(tags),
                         'file': f"{file_label}:{start + 1}",
-                        'desc': m_block.group('desc').strip(),
+                        'desc': desc,
+                        'body': ' '.join(body_lines).strip(),
                     })
                 continue
 

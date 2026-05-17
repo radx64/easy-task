@@ -7,8 +7,8 @@
 - Scan a directory tree for `TASK(...)` comments in files
 - Assign sequential `#T...` task IDs automatically
 - Keep task metadata such as `status`, `tags`, and `timestamp`
-- Edit task metadata using a curses-based form
-- List tasks in a scrollable terminal
+- Edit task metadata using a Textual-based form
+- List tasks in a scrollable Textual table
 - Print task statistics grouped by status and tags
 
 ## Usage
@@ -16,8 +16,16 @@
 ```bash
 python3 tasks-app.py scan [path]
 python3 tasks-app.py list [path]
+python3 tasks-app.py search <query> [path]
 python3 tasks-app.py stats [path]
 python3 tasks-app.py edit <taskId> [path]
+```
+
+Create a virtual environment and install the terminal UI dependency with:
+
+```bash
+./setup-venv.sh
+source .venv/bin/activate
 ```
 
 ### Commands
@@ -30,8 +38,13 @@ python3 tasks-app.py edit <taskId> [path]
 
 - `list [path]`
   - Shows only tasks that already have assigned IDs
-  - Displays a curses-based table UI when running in a terminal
-  - Falls back to plain text output if curses is unavailable
+  - Displays a Textual-based table UI when running in a terminal
+  - Falls back to plain text output if Textual is unavailable
+
+- `search <query> [path]`
+  - Filters tasks using the provided search string
+  - Matches task ID, status, tags, file path, or description
+  - Displays the same output format as `list`
 
 - `stats [path]`
   - Summarizes total tasks, tasks with IDs, tasks without IDs

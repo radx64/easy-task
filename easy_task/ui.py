@@ -1,4 +1,3 @@
-import curses
 import os
 import sys
 from pathlib import Path
@@ -11,143 +10,137 @@ from .parsing import (
 )
 
 
-def curses_supported():
+def _load_textual():
+    try:
+        from textual.app import App
+        from textual.containers import Horizontal, Vertical
+        from textual.widgets import Button, DataTable, Footer, Header, Input, Label, Static
+    except ImportError:
+        return None
+
+    return {
+        'App': App,
+        'Button': Button,
+        'DataTable': DataTable,
+        'Footer': Footer,
+        'Header': Header,
+        'Horizontal': Horizontal,
+        'Input': Input,
+        'Label': Label,
+        'Static': Static,
+        'Vertical': Vertical,
+    }
+
+
+def textual_supported():
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         return False
     term = os.environ.get('TERM', '')
-    return term and term != 'dumb'
+    return bool(term and term != 'dumb' and _load_textual())
 
 
-def curses_edit_dialog(stdscr, file_path, orig_lines, default_taskid, default_status, default_tags, default_timestamp, default_desc):
-    curses.curs_set(1)
-    stdscr.keypad(True)
-    stdscr.clear()
-    maxy, maxx = stdscr.getmaxyx()
+def _build_edit_app(file_path: Path, default_taskid, default_status, default_tags, default_timestamp, default_desc):
+    textual = _load_textual()
+    if textual is None:
+        raise RuntimeError('Textual is not installed')
 
-    width = min(80, maxx - 4)
-    height = min(20, maxy - 4)
-    top = max(0, (maxy - height) // 2)
-    left = max(0, (maxx - width) // 2)
+    App = textual['App']
+    Button = textual['Button']
+    Horizontal = textual['Horizontal']
+    Input = textual['Input']
+    Label = textual['Label']
+    Static = textual['Static']
+    Vertical = textual['Vertical']
 
-    desc_lines = (default_desc or '').splitlines() or ['']
-    desc_height = min(5, len(desc_lines))
-    content_height = 10 + desc_height
-    if content_height > height:
-        height = min(maxy - 4, content_height)
-        top = max(0, (maxy - height) // 2)
+    class TaskEditApp(App):
+        CSS = """
+        Screen {
+            align: center middle;
+        }
 
-    win = curses.newwin(height, width, top, left)
-    win.keypad(True)
-    win.border()
-    try:
-        curses.start_color()
-        curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
-        curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_CYAN)
-        curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-    except curses.error:
-        pass
+        #dialog {
+            width: 80;
+            max-width: 95%;
+            height: auto;
+            border: solid $primary;
+            padding: 1 2;
+        }
 
-    def safe_addstr(win, y, x, text, attr=0):
-        try:
-            win.addnstr(y, x, text, max(0, width - x - 1), attr)
-        except curses.error:
-            try:
-                win.addnstr(y, x, text, max(0, width - x - 1))
-            except curses.error:
-                pass
+        #description {
+            min-height: 3;
+            margin: 1 0;
+            color: $text-muted;
+        }
 
-    title = ' TASK EDITOR '
-    title_x = max(2, (width - len(title)) // 2)
-    safe_addstr(win, 0, title_x, title, curses.color_pair(1) | curses.A_BOLD)
+        #title {
+            text-style: bold;
+            margin-bottom: 1;
+        }
 
-    header = f'File: {file_path.name}'
-    safe_addstr(win, 1, 2, header, curses.A_BOLD)
-    safe_addstr(win, 2, 2, 'Description:', curses.A_UNDERLINE)
+        #help {
+            color: $text-muted;
+            margin-top: 1;
+        }
 
-    for idx in range(desc_height):
-        text = desc_lines[idx]
-        safe_addstr(win, 3 + idx, 2, text)
-    if desc_height < 5:
-        safe_addstr(win, 3 + desc_height, 2, '(read-only)', curses.A_DIM)
+        Label {
+            margin-top: 1;
+        }
 
-    fields = [
-        ('Task ID', default_taskid),
-        ('Status', default_status or 'new'),
-        ('Tags', ', '.join(default_tags)),
-        ('Timestamp', default_timestamp),
-    ]
-    values = [list(value) for _, value in fields]
-    cursors = [len(val) for val in values]
-    current = 0
-    field_y = 4 + max(desc_height, 1)
+        #actions {
+            height: auto;
+            margin-top: 1;
+        }
 
-    instructions = 'Enter=save  Tab/Down=next  Shift-Tab/Up=prev  Esc=skip'
-    field_width = width - 18
+        Button {
+            margin-right: 1;
+        }
+        """
 
-    def draw_fields():
-        for idx, (label, _) in enumerate(fields):
-            y = field_y + idx * 2
-            label_text = f'{label}:'.ljust(14)
-            field_attr = curses.color_pair(2) | curses.A_BOLD if idx == current else curses.A_NORMAL
-            safe_addstr(win, y, 2, label_text, field_attr)
-            content = ''.join(values[idx])
-            display = content[:field_width]
-            safe_addstr(win, y, 16, ' ' * field_width)
-            safe_addstr(win, y, 16, display, field_attr)
-            if idx == current:
-                cursor_x = 16 + min(cursors[idx], field_width - 1)
-                try:
-                    win.move(y, cursor_x)
-                except curses.error:
-                    pass
-        safe_addstr(win, height - 2, 2, ' ' * (width - 4))
-        safe_addstr(win, height - 2, 2, instructions[:width - 4], curses.A_DIM)
+        BINDINGS = [
+            ('escape', 'cancel', 'Cancel'),
+            ('ctrl+s', 'save', 'Save'),
+        ]
 
-    while True:
-        draw_fields()
-        win.refresh()
-        try:
-            ch = win.get_wch()
-        except curses.error:
-            continue
+        def compose(self):
+            desc = default_desc or ''
+            with Vertical(id='dialog'):
+                yield Static('TASK EDITOR', id='title')
+                yield Label(f'File: {file_path.name}')
+                yield Static(desc or '(no description)', id='description')
+                yield Label('Task ID')
+                yield Input(value=default_taskid, id='taskid')
+                yield Label('Status')
+                yield Input(value=default_status or 'new', id='status')
+                yield Label('Tags')
+                yield Input(value=', '.join(default_tags), id='tags')
+                yield Label('Timestamp')
+                yield Input(value=default_timestamp, id='timestamp')
+                with Horizontal(id='actions'):
+                    yield Button('Save', id='save', variant='primary')
+                    yield Button('Skip', id='cancel')
+                yield Static('Ctrl+S saves. Escape skips.', id='help')
 
-        if ch in ('\n', '\r', curses.KEY_ENTER):
-            taskid = ''.join(values[0]).strip()
-            status = ''.join(values[1]).strip() or 'new'
-            tags = [t.strip() for t in ''.join(values[2]).split(',') if t.strip()]
-            timestamp = ''.join(values[3]).strip() or default_timestamp
-            if not taskid:
-                taskid = default_taskid
-            return taskid, status, tags, default_desc, timestamp
+        def on_mount(self):
+            self.query_one('#taskid', Input).focus()
 
-        if ch == '\x1b':
-            return None
+        def on_button_pressed(self, event):
+            if event.button.id == 'save':
+                self.action_save()
+            elif event.button.id == 'cancel':
+                self.action_cancel()
 
-        if ch == '\t' or ch == curses.KEY_DOWN:
-            current = (current + 1) % len(fields)
-            continue
-        if ch == curses.KEY_BTAB or ch == curses.KEY_UP:
-            current = (current - 1) % len(fields)
-            continue
+        def action_save(self):
+            taskid = self.query_one('#taskid', Input).value.strip() or default_taskid
+            status = self.query_one('#status', Input).value.strip() or 'new'
+            tags_value = self.query_one('#tags', Input).value
+            tags = [tag.strip() for tag in tags_value.split(',') if tag.strip()]
+            timestamp = self.query_one('#timestamp', Input).value.strip() or default_timestamp
+            self.exit((taskid, status, tags, default_desc, timestamp))
 
-        if ch == curses.KEY_LEFT:
-            if cursors[current] > 0:
-                cursors[current] -= 1
-            continue
-        if ch == curses.KEY_RIGHT:
-            if cursors[current] < len(values[current]):
-                cursors[current] += 1
-            continue
+        def action_cancel(self):
+            self.exit(None)
 
-        if ch in (curses.KEY_BACKSPACE, '\b', '\x7f'):
-            if cursors[current] > 0:
-                cursors[current] -= 1
-                values[current].pop(cursors[current])
-            continue
-
-        if isinstance(ch, str) and ch.isprintable():
-            values[current].insert(cursors[current], ch)
-            cursors[current] += 1
+    return TaskEditApp()
 
 
 def text_edit_dialog(file_path: Path, default_taskid, default_status, default_tags, default_timestamp, default_desc):
@@ -192,23 +185,24 @@ def prompt_edit(file_path: Path, task_lines: list[str], next_id: int):
     if not timestamp:
         timestamp = current_timestamp()
 
-    if curses_supported():
+    if textual_supported():
         try:
-            result = curses.wrapper(
-                curses_edit_dialog,
+            result = _build_edit_app(
                 file_path,
-                task_lines,
                 taskid,
                 status or 'new',
                 tags,
                 timestamp,
                 desc,
-            )
+            ).run()
         except Exception as exc:
-            print(f"[warning] curses TUI failed: {exc}. Falling back to plain prompt.", file=sys.stderr)
+            print(f"[warning] Textual TUI failed: {exc}. Falling back to plain prompt.", file=sys.stderr)
             result = text_edit_dialog(file_path, taskid, status or 'new', tags, timestamp, desc)
     else:
-        print("[info] curses TUI unavailable; using plain prompt.", file=sys.stderr)
+        if _load_textual() is None:
+            print("[info] Textual is not installed; using plain prompt.", file=sys.stderr)
+        else:
+            print("[info] Textual TUI unavailable; using plain prompt.", file=sys.stderr)
         result = text_edit_dialog(file_path, taskid, status or 'new', tags, timestamp, desc)
 
     if result is None:
@@ -218,142 +212,150 @@ def prompt_edit(file_path: Path, task_lines: list[str], next_id: int):
     return taskid, status, tags, desc, timestamp
 
 
-def curses_task_list_dialog(stdscr, tasks):
-    curses.curs_set(0)
-    stdscr.keypad(True)
-    curses.start_color()
-    try:
-        curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
-        curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_CYAN)
-    except curses.error:
-        pass
+def show_task_list_dialog(tasks, header: str | None = None):
+    textual = _load_textual()
+    if textual is None:
+        raise RuntimeError('Textual is not installed')
 
-    def safe_addstr(win, y, x, text, attr=0):
-        try:
-            win.addnstr(y, x, text, max(0, curses.COLS - x - 1), attr)
-        except curses.error:
-            try:
-                win.addnstr(y, x, text, max(0, curses.COLS - x - 1))
-            except curses.error:
-                pass
+    App = textual['App']
+    DataTable = textual['DataTable']
+    Footer = textual['Footer']
+    Header = textual['Header']
+    Label = textual['Label']
 
-    height, width = stdscr.getmaxyx()
-    table_top = 4
-    visible_rows = max(1, height - table_top - 3)
-    selected = 0
-    top_idx = 0
+    class TaskListApp(App):
+        TITLE = 'Task List'
 
-    while True:
-        stdscr.erase()
-        title = ' TASK LIST '
-        title_x = max(2, (width - len(title)) // 2)
-        safe_addstr(stdscr, 0, title_x, title, curses.color_pair(1) | curses.A_BOLD)
-        safe_addstr(stdscr, 1, 2, f'Tasks: {len(tasks)}  Navigate: up/down  PgUp/PgDn  q/Esc=quit', curses.A_DIM)
+        CSS = """
+        DataTable {
+            height: 1fr;
+        }
+        """
 
-        id_w = 8
-        status_w = 12
-        tags_w = 22
-        file_w = max(20, min(30, width // 4))
-        summary_w = max(10, width - 4 - id_w - status_w - tags_w - file_w - 4)
+        BINDINGS = [
+            ('q', 'quit', 'Quit'),
+            ('escape', 'quit', 'Quit'),
+        ]
 
-        header = (
-            f"{'ID'.ljust(id_w)} {'Status'.ljust(status_w)} {'Tags'.ljust(tags_w)} "
-            f"{'File:Line'.ljust(file_w)} {'Summary'.ljust(summary_w)}"
-        )
-        safe_addstr(stdscr, 3, 2, header, curses.A_UNDERLINE | curses.A_BOLD)
+        def compose(self):
+            yield Header(show_clock=False)
+            if header:
+                yield Label(header)
+            yield Label(f'Tasks: {len(tasks)}')
+            yield DataTable(id='tasks')
+            yield Footer()
 
-        for visible_index in range(visible_rows):
-            row_idx = top_idx + visible_index
-            y = table_top + visible_index
-            if row_idx >= len(tasks):
-                break
-            task = tasks[row_idx]
-            row_attr = curses.A_REVERSE if row_idx == selected else curses.A_NORMAL
-            desc = task['desc'][:summary_w]
-            line = (
-                f"{task['taskid'].ljust(id_w)} {task['status'].ljust(status_w)} "
-                f"{task['tags'][:tags_w].ljust(tags_w)} {task['file'][:file_w].ljust(file_w)} "
-                f"{desc.ljust(summary_w)}"
+        def on_mount(self):
+            table = self.query_one('#tasks', DataTable)
+            table.cursor_type = 'row'
+            table.add_columns('ID', 'Status', 'Tags', 'File:Line', 'Summary')
+            for task in tasks:
+                table.add_row(
+                    task['taskid'],
+                    task['status'],
+                    task['tags'],
+                    task['file'],
+                    task['desc'],
+                )
+
+    TaskListApp().run()
+
+
+def show_stats_dialog(total, with_id, without_id, status_counts, tag_counts):
+    textual = _load_textual()
+    if textual is None:
+        raise RuntimeError('Textual is not installed')
+
+    App = textual['App']
+    DataTable = textual['DataTable']
+    Footer = textual['Footer']
+    Header = textual['Header']
+    Horizontal = textual['Horizontal']
+    Label = textual['Label']
+    Static = textual['Static']
+    Vertical = textual['Vertical']
+
+    class TaskStatsApp(App):
+        TITLE = 'Task Stats'
+
+        CSS = """
+        #content {
+            margin: 1 2;
+            height: 1fr;
+        }
+
+        #summary {
+            height: 7;
+            margin-bottom: 1;
+        }
+
+        #breakdowns {
+            height: 1fr;
+        }
+
+        .panel {
+            width: 1fr;
+            margin-right: 2;
+        }
+
+        .panel-title {
+            text-style: bold;
+            margin-bottom: 1;
+        }
+
+        DataTable {
+            height: 1fr;
+        }
+        """
+
+        BINDINGS = [
+            ('q', 'quit', 'Quit'),
+            ('escape', 'quit', 'Quit'),
+        ]
+
+        def compose(self):
+            yield Header(show_clock=False)
+            with Vertical(id='content'):
+                yield Static('TASKS SUMMARY', classes='panel-title')
+                yield DataTable(id='summary')
+                with Horizontal(id='breakdowns'):
+                    with Vertical(classes='panel'):
+                        yield Label('By status', classes='panel-title')
+                        yield DataTable(id='statuses')
+                    with Vertical(classes='panel'):
+                        yield Label('Top tags', classes='panel-title')
+                        yield DataTable(id='tags')
+            yield Footer()
+
+        def on_mount(self):
+            self._populate_summary()
+            self._populate_counts(
+                '#statuses',
+                'Status',
+                sorted(status_counts.items(), key=lambda x: (-x[1], x[0])),
             )
-            safe_addstr(stdscr, y, 2, line, row_attr)
+            self._populate_counts(
+                '#tags',
+                'Tag',
+                sorted(tag_counts.items(), key=lambda x: (-x[1], x[0])),
+            )
 
-        if len(tasks) > visible_rows:
-            status = f"Showing {top_idx + 1}-{min(len(tasks), top_idx + visible_rows)} of {len(tasks)}"
-            safe_addstr(stdscr, height - 2, 2, status, curses.A_DIM)
+        def _populate_summary(self):
+            table = self.query_one('#summary', DataTable)
+            table.cursor_type = 'row'
+            table.add_columns('Metric', 'Count')
+            table.add_row('Total tasks', str(total))
+            table.add_row('With ID', str(with_id))
+            table.add_row('Without ID', str(without_id))
 
-        stdscr.refresh()
-        ch = stdscr.getch()
-        if ch in (ord('q'), 27):
-            break
-        if ch in (curses.KEY_DOWN, ord('j')):
-            if selected < len(tasks) - 1:
-                selected += 1
-                if selected >= top_idx + visible_rows:
-                    top_idx += 1
-            continue
-        if ch in (curses.KEY_UP, ord('k')):
-            if selected > 0:
-                selected -= 1
-                if selected < top_idx:
-                    top_idx = selected
-            continue
-        if ch == curses.KEY_NPAGE:
-            top_idx = min(len(tasks) - visible_rows, top_idx + visible_rows)
-            selected = min(len(tasks) - 1, top_idx + visible_rows - 1)
-            continue
-        if ch == curses.KEY_PPAGE:
-            top_idx = max(0, top_idx - visible_rows)
-            selected = max(0, top_idx)
+        def _populate_counts(self, selector, label, rows):
+            table = self.query_one(selector, DataTable)
+            table.cursor_type = 'row'
+            table.add_columns(label, 'Count')
+            if not rows:
+                table.add_row('(none)', '0')
+                return
+            for name, count in rows:
+                table.add_row(str(name), str(count))
 
-
-def curses_stats_dialog(stdscr, total, with_id, without_id, status_counts, tag_counts):
-    curses.curs_set(0)
-    stdscr.keypad(True)
-    curses.start_color()
-    try:
-        curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
-    except curses.error:
-        pass
-
-    def safe_addstr(win, y, x, text, attr=0):
-        try:
-            win.addnstr(y, x, text, max(0, width - x - 1), attr)
-        except curses.error:
-            try:
-                win.addnstr(y, x, text, max(0, width - x - 1))
-            except curses.error:
-                pass
-
-    height, width = stdscr.getmaxyx()
-    title = ' TASK STATS '
-    title_x = max(2, (width - len(title)) // 2)
-
-    while True:
-        stdscr.erase()
-        safe_addstr(stdscr, 0, title_x, title, curses.color_pair(1) | curses.A_BOLD)
-        safe_addstr(stdscr, 1, 2, f'Total tasks: {total}', curses.A_BOLD)
-        safe_addstr(stdscr, 2, 2, f'With ID:    {with_id}')
-        safe_addstr(stdscr, 3, 2, f'Without ID: {without_id}')
-
-        status_start = 5
-        safe_addstr(stdscr, status_start, 2, 'By status:', curses.A_UNDERLINE | curses.A_BOLD)
-        for idx, (status, cnt) in enumerate(sorted(status_counts.items(), key=lambda x: (-x[1], x[0]))):
-            y = status_start + idx + 1
-            if y >= height - 3:
-                break
-            safe_addstr(stdscr, y, 4, f'{status}: {cnt}')
-
-        tag_x = width // 2
-        safe_addstr(stdscr, status_start, tag_x, 'Top tags:', curses.A_UNDERLINE | curses.A_BOLD)
-        for idx, (tag, cnt) in enumerate(sorted(tag_counts.items(), key=lambda x: (-x[1], x[0]))):
-            y = status_start + idx + 1
-            if y >= height - 3:
-                break
-            safe_addstr(stdscr, y, tag_x + 2, f'{tag}: {cnt}')
-
-        safe_addstr(stdscr, height - 2, 2, 'Press q or Esc to exit.', curses.A_DIM)
-        stdscr.refresh()
-
-        ch = stdscr.getch()
-        if ch in (ord('q'), 27):
-            break
+    TaskStatsApp().run()

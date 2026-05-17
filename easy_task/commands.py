@@ -1,4 +1,3 @@
-import curses
 import re
 import sys
 from collections import defaultdict
@@ -16,9 +15,9 @@ from .parsing import (
     parse_param_tokens,
 )
 from .ui import (
-    curses_stats_dialog,
-    curses_supported,
-    curses_task_list_dialog,
+    show_stats_dialog,
+    show_task_list_dialog,
+    textual_supported,
     prompt_edit,
 )
 
@@ -192,21 +191,37 @@ def edit_task(path: Path, task_id: str):
         print(f'Task {task_id} not found in {path}')
 
 
-def list_tasks(path: Path):
-    tasks = collect_task_entries(path)
+def _print_task_entries(tasks: list[dict], header: str | None = None):
     if not tasks:
         print('No tasks found')
         return
 
-    if curses_supported():
+    if textual_supported():
         try:
-            curses.wrapper(curses_task_list_dialog, tasks)
+            show_task_list_dialog(tasks, header)
             return
         except Exception as exc:
-            print(f"[warning] curses TUI failed: {exc}. Falling back to plain output.", file=sys.stderr)
+            print(f"[warning] Textual TUI failed: {exc}. Falling back to plain output.", file=sys.stderr)
 
     for task in tasks:
         print(f"{task['taskid']} {task['status']} {task['tags']} {task['file']} {task['desc']}")
+
+
+def list_tasks(path: Path):
+    _print_task_entries(collect_task_entries(path))
+
+def search_tasks(path: Path, query: str):
+    query_lower = query.lower()
+    tasks = [
+        task for task in collect_task_entries(path)
+        if query_lower in task['taskid'].lower()
+        or query_lower in task['status'].lower()
+        or query_lower in task['tags'].lower()
+        or query_lower in task['file'].lower()
+        or query_lower in task['desc'].lower()
+        or query_lower in task.get('body', '').lower()
+    ]
+    _print_task_entries(tasks, f'Search expression: {query}')
 
 
 def stats(path: Path):
@@ -262,10 +277,9 @@ def stats(path: Path):
 
             i += 1
 
-    if curses_supported():
+    if textual_supported():
         try:
-            curses.wrapper(
-                curses_stats_dialog,
+            show_stats_dialog(
                 total,
                 with_id,
                 without_id,
@@ -274,7 +288,7 @@ def stats(path: Path):
             )
             return
         except Exception as exc:
-            print(f"[warning] curses TUI failed: {exc}. Falling back to plain output.", file=sys.stderr)
+            print(f"[warning] Textual TUI failed: {exc}. Falling back to plain output.", file=sys.stderr)
 
     print('TASKS SUMMARY')
     print('-------------')
