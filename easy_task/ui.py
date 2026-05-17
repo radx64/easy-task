@@ -248,13 +248,14 @@ def show_task_list_dialog(tasks, header: str | None = None):
         def on_mount(self):
             table = self.query_one('#tasks', DataTable)
             table.cursor_type = 'row'
-            table.add_columns('ID', 'Status', 'Tags', 'File:Line', 'Summary')
+            table.add_columns('ID', 'Status', 'Tags', 'File:Line', 'Timestamp', 'Summary')
             for task in tasks:
                 table.add_row(
                     task['taskid'],
                     task['status'],
                     task['tags'],
                     task['file'],
+                    task['timestamp'],
                     task['desc'],
                 )
 

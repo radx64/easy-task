@@ -21,7 +21,7 @@ class CommandTests(unittest.TestCase):
             with patch('easy_task.commands.textual_supported', return_value=False), redirect_stdout(output):
                 list_tasks(root)
 
-        self.assertEqual(output.getvalue(), '#T1 new script, feature todos.list:1 add task\n')
+        self.assertEqual(output.getvalue(), '#T1 new script, feature todos.list:1 - add task\n')
 
     def test_search_tasks_filters_by_query(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -41,8 +41,8 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(
             output.getvalue(),
             'Search expression: script\n'
-            '#T1 new script, feature todos.list:1 add task\n'
-            '#T2 done bug todos.list:2 fix bug in script\n'
+            '#T1 new script, feature todos.list:1 - add task\n'
+            '#T2 done bug todos.list:2 - fix bug in script\n'
         )
 
     def test_search_tasks_matches_multiline_description(self):
@@ -62,7 +62,7 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(
             output.getvalue(),
             'Search expression: third\n'
-            '#T1 new script todos.list:1 first line\n'
+            '#T1 new script todos.list:1 - first line\n'
         )
 
     def test_stats_prints_plain_summary_when_textual_unavailable(self):

@@ -136,7 +136,7 @@ def collect_task_entries(path: Path):
                     task_lines.append(lines[i])
                     i += 1
 
-                taskid, status, tags, _ = parse_param_tokens(m_line.group('params'))
+                taskid, status, tags, timestamp = parse_param_tokens(m_line.group('params'))
                 if taskid:
                     file_label = str(file_path.relative_to(path))
                     desc = m_line.group('desc').strip()
@@ -150,6 +150,7 @@ def collect_task_entries(path: Path):
                         'taskid': taskid,
                         'status': status or 'new',
                         'tags': ', '.join(tags),
+                        'timestamp': timestamp or '-',
                         'file': f"{file_label}:{start + 1}",
                         'desc': desc,
                         'body': ' '.join(body_lines).strip(),
@@ -167,7 +168,7 @@ def collect_task_entries(path: Path):
                         break
                     i += 1
 
-                taskid, status, tags, _ = parse_param_tokens(m_block.group('params'))
+                taskid, status, tags, timestamp = parse_param_tokens(m_block.group('params'))
                 if taskid:
                     file_label = str(file_path.relative_to(path))
                     desc = m_block.group('desc').strip()
@@ -183,6 +184,7 @@ def collect_task_entries(path: Path):
                         'taskid': taskid,
                         'status': status or 'new',
                         'tags': ', '.join(tags),
+                        'timestamp': timestamp or '-',
                         'file': f"{file_label}:{start + 1}",
                         'desc': desc,
                         'body': ' '.join(body_lines).strip(),

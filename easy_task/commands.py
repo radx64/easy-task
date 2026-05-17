@@ -203,8 +203,11 @@ def _print_task_entries(tasks: list[dict], header: str | None = None):
         except Exception as exc:
             print(f"[warning] Textual TUI failed: {exc}. Falling back to plain output.", file=sys.stderr)
 
+    if header:
+        print(header)
+
     for task in tasks:
-        print(f"{task['taskid']} {task['status']} {task['tags']} {task['file']} {task['desc']}")
+        print(f"{task['taskid']} {task['status']} {task['tags']} {task['file']} {task['timestamp']} {task['desc']}")
 
 
 def list_tasks(path: Path):
