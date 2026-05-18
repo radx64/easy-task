@@ -76,6 +76,8 @@ class TaskCollectionTests(unittest.TestCase):
                     'tags': 'script, feature',
                     'file': 'example.c:1',
                     'desc': 'line task',
+                    'body': 'line task more detail',
+                    'timestamp': '-',
                 },
                 {
                     'taskid': '#T4',
@@ -83,6 +85,8 @@ class TaskCollectionTests(unittest.TestCase):
                     'tags': 'docs',
                     'file': 'example.c:3',
                     'desc': 'block task',
+                    'body': 'block task extra detail',
+                    'timestamp': '-',
                 },
             ],
         )
@@ -100,4 +104,3 @@ class TaskCollectionTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
