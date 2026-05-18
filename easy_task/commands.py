@@ -1,5 +1,4 @@
 import re
-import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -14,12 +13,7 @@ from .parsing import (
     normalize_task_id,
     parse_param_tokens,
 )
-from .ui import (
-    show_stats_dialog,
-    show_task_list_dialog,
-    textual_supported,
-    prompt_edit,
-)
+from .ui import prompt_edit
 
 
 def scan(path: Path):
@@ -196,13 +190,6 @@ def _print_task_entries(tasks: list[dict], header: str | None = None):
         print('No tasks found')
         return
 
-    if textual_supported():
-        try:
-            show_task_list_dialog(tasks, header)
-            return
-        except Exception as exc:
-            print(f"[warning] Textual TUI failed: {exc}. Falling back to plain output.", file=sys.stderr)
-
     if header:
         print(header)
 
@@ -279,19 +266,6 @@ def stats(path: Path):
                 continue
 
             i += 1
-
-    if textual_supported():
-        try:
-            show_stats_dialog(
-                total,
-                with_id,
-                without_id,
-                status_counts,
-                tag_counts,
-            )
-            return
-        except Exception as exc:
-            print(f"[warning] Textual TUI failed: {exc}. Falling back to plain output.", file=sys.stderr)
 
     print('TASKS SUMMARY')
     print('-------------')

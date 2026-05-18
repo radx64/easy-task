@@ -18,7 +18,7 @@ class CommandTests(unittest.TestCase):
             )
 
             output = io.StringIO()
-            with patch('easy_task.commands.textual_supported', return_value=False), redirect_stdout(output):
+            with redirect_stdout(output):
                 list_tasks(root)
 
         self.assertEqual(output.getvalue(), '#T1 new script, feature todos.list:1 - add task\n')
@@ -35,7 +35,7 @@ class CommandTests(unittest.TestCase):
             )
 
             output = io.StringIO()
-            with patch('easy_task.commands.textual_supported', return_value=False), redirect_stdout(output):
+            with redirect_stdout(output):
                 search_tasks(root, 'script')
 
         self.assertEqual(
@@ -56,7 +56,7 @@ class CommandTests(unittest.TestCase):
             )
 
             output = io.StringIO()
-            with patch('easy_task.commands.textual_supported', return_value=False), redirect_stdout(output):
+            with redirect_stdout(output):
                 search_tasks(root, 'third')
 
         self.assertEqual(
@@ -77,7 +77,7 @@ class CommandTests(unittest.TestCase):
             )
 
             output = io.StringIO()
-            with patch('easy_task.commands.textual_supported', return_value=False), redirect_stdout(output):
+            with redirect_stdout(output):
                 stats(root)
 
         text = output.getvalue()
