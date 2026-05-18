@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from .commands import edit_task, list_tasks, scan, search_tasks, stats
+from .commands import deps, edit_task, list_tasks, scan, search_tasks, stats, display_task
 
 
 def main():
@@ -41,11 +41,31 @@ def main():
         'path', nargs='?', default='.', help='Directory to scan (default: current directory)'
     )
 
+    deps_parser = subparsers.add_parser(
+        'deps', help='Show task dependencies and dependents for a given task ID'
+    )
+    deps_parser.add_argument(
+        'taskId', help='Task ID to inspect, e.g. #123'
+    )
+    deps_parser.add_argument(
+        'path', nargs='?', default='.', help='Directory containing TASK comments (default: current directory)'
+    )
+
+    display_parser = subparsers.add_parser(
+        'display', help='Display full task metadata and description for a given task ID'
+    )
+    display_parser.add_argument(
+        'taskId', help='Task ID to display, e.g. #123'
+    )
+    display_parser.add_argument(
+        'path', nargs='?', default='.', help='Directory containing TASK comments (default: current directory)'
+    )
+
     edit_parser = subparsers.add_parser(
         'edit', help='Edit the metadata of an existing TASK by ID'
     )
     edit_parser.add_argument(
-        'taskId', help='Task ID to edit, e.g. #T123'
+        'taskId', help='Task ID to edit, e.g. #123'
     )
     edit_parser.add_argument(
         'path', nargs='?', default='.', help='Directory containing TASK comments (default: current directory)'
@@ -60,6 +80,10 @@ def main():
         search_tasks(Path(args.path), args.query)
     elif args.command == 'stats':
         stats(Path(args.path))
+    elif args.command == 'deps':
+        deps(Path(args.path), args.taskId)
+    elif args.command == 'display':
+        display_task(Path(args.path), args.taskId)
     elif args.command == 'edit':
         edit_task(Path(args.path), args.taskId)
     else:

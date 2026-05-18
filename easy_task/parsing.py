@@ -5,7 +5,7 @@ from pathlib import Path
 
 LINE_TASK_PATTERN = re.compile(r'//\s*TASK\((?P<params>[^)]*)\)\s*:?\s*(?P<desc>.*)')
 BLOCK_TASK_PATTERN = re.compile(r'/\*\s*TASK\((?P<params>[^)]*)\)\s*:?\s*(?P<desc>.*)')
-ID_RE = re.compile(r'^(?:#T|T)?(?P<id>\d+)$')
+ID_RE = re.compile(r'^(?:#)?(?P<id>\d+)$')
 SKIP_DIRS = {'.git', '__pycache__'}
 
 
@@ -52,10 +52,11 @@ def parse_param_tokens(param_str: str):
     status = None
     tags = []
     timestamp = None
+    depends_on = []
     for token in tokens:
         m_id = ID_RE.fullmatch(token)
         if m_id and taskid is None:
-            taskid = f"#T{m_id.group('id')}"
+            taskid = f"#{m_id.group('id')}"
             continue
         if token.startswith('status:'):
             status = token.split(':', 1)[1]
@@ -65,6 +66,11 @@ def parse_param_tokens(param_str: str):
             inner = inner.strip('{}')
             tags = [x.strip() for x in inner.split(',') if x.strip()]
             continue
+        if token.startswith('depends_on:'):
+            inner = token.split(':', 1)[1].strip()
+            inner = inner.strip('{}')
+            depends_on = [normalize_task_id(x.strip()) for x in inner.split(',') if x.strip()]
+            continue
         if token.startswith('timestamp:'):
             timestamp = token.split(':', 1)[1]
             continue
@@ -72,7 +78,7 @@ def parse_param_tokens(param_str: str):
             status = token
             continue
         tags.append(token)
-    return taskid, status, tags, timestamp
+    return taskid, status, tags, timestamp, depends_on
 
 
 def current_timestamp():
@@ -83,16 +89,19 @@ def normalize_task_id(task_id: str):
     m = ID_RE.search(task_id)
     if not m:
         return task_id
-    return f"#T{m.group('id')}"
+    return f"#{m.group('id')}"
 
 
-def format_params(taskid: str, status: str, tags: list, timestamp=None):
+def format_params(taskid: str, status: str, tags: list, timestamp=None, depends_on=None):
     if not status:
         status = 'new'
     tags_part = ', '.join(tags) if tags else ''
+    depends_part = ''
+    if depends_on:
+        depends_part = f", depends_on: {{{', '.join(depends_on)}}}"
     if timestamp:
-        return f"{taskid}, status:{status}, tags: {{{tags_part}}}, timestamp:{timestamp}"
-    return f"{taskid}, status:{status}, tags: {{{tags_part}}}"
+        return f"{taskid}, status:{status}, tags: {{{tags_part}}}, timestamp:{timestamp}{depends_part}"
+    return f"{taskid}, status:{status}, tags: {{{tags_part}}}{depends_part}"
 
 
 def extract_existing_max_id(path: Path):
@@ -103,7 +112,7 @@ def extract_existing_max_id(path: Path):
         while i < len(lines):
             match = LINE_TASK_PATTERN.search(lines[i]) or BLOCK_TASK_PATTERN.search(lines[i])
             if match:
-                taskid, _, _, _ = parse_param_tokens(match.group('params'))
+                taskid, _, _, _, _ = parse_param_tokens(match.group('params'))
                 if taskid:
                     try:
                         val = int(ID_RE.fullmatch(taskid).group('id'))
@@ -136,7 +145,7 @@ def collect_task_entries(path: Path):
                     task_lines.append(lines[i])
                     i += 1
 
-                taskid, status, tags, timestamp = parse_param_tokens(m_line.group('params'))
+                taskid, status, tags, timestamp, depends_on = parse_param_tokens(m_line.group('params'))
                 if taskid:
                     file_label = str(file_path.relative_to(path))
                     desc = m_line.group('desc').strip()
@@ -151,9 +160,10 @@ def collect_task_entries(path: Path):
                         'status': status or 'new',
                         'tags': ', '.join(tags),
                         'timestamp': timestamp or '-',
+                        'depends_on': depends_on,
                         'file': f"{file_label}:{start + 1}",
                         'desc': desc,
-                        'body': ' '.join(body_lines).strip(),
+                        'body': '\n'.join(body_lines).strip(),
                     })
                 continue
 
@@ -168,7 +178,7 @@ def collect_task_entries(path: Path):
                         break
                     i += 1
 
-                taskid, status, tags, timestamp = parse_param_tokens(m_block.group('params'))
+                taskid, status, tags, timestamp, depends_on = parse_param_tokens(m_block.group('params'))
                 if taskid:
                     file_label = str(file_path.relative_to(path))
                     desc = m_block.group('desc').strip()
@@ -185,9 +195,10 @@ def collect_task_entries(path: Path):
                         'status': status or 'new',
                         'tags': ', '.join(tags),
                         'timestamp': timestamp or '-',
+                        'depends_on': depends_on,
                         'file': f"{file_label}:{start + 1}",
                         'desc': desc,
-                        'body': ' '.join(body_lines).strip(),
+                        'body': '\n'.join(body_lines).strip(),
                     })
                 continue
 

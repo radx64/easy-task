@@ -1,10 +1,10 @@
-// TASK(#T1, status:new, tags: {script, feature}, timestamp:2026-05-17T19:11:25): add support for archiving tasks
+// TASK(#1, status:new, tags: {script, feature}, timestamp:2026-05-17T19:11:25, depends_on: {#2, #3}): add support for archiving tasks
 // so they can be removed from source and added to some .archive directory, but still be accessible for reference
 
 
-// TASK(#T2, status:new, tags: {script, feature}, timestamp:2026-05-17T19:15:05): Add possibility to export tasks to MD or HTML format for better viewing
+// TASK(#2, status:new, tags: {script, feature}, timestamp:2026-05-17T19:15:05): Add possibility to export tasks to MD or HTML format for better viewing
 
-// TASK(#T3, status:new, tags: {script, feature}, timestamp:2026-05-17T19:17:07): think about extending features like
+// TASK(#3, status:new, tags: {script, feature}, timestamp:2026-05-17T19:17:07): think about extending features like
 // tasks scan
 // tasks open
 // tasks done T123

@@ -5,11 +5,12 @@
 ## Features
 
 - Scan a directory tree for `TASK(...)` comments in files
-- Assign sequential `#T...` task IDs automatically
-- Keep task metadata such as `status`, `tags`, and `timestamp`
+- Assign sequential `#...` task IDs automatically
+- Keep task metadata such as `status`, `tags`, `timestamp`, and `depends_on`
 - Edit task metadata using simple console prompts
 - List tasks in plain text output
 - Print task statistics grouped by status and tags
+- Show task dependencies and dependents with `deps`
 
 ## Usage
 
@@ -18,6 +19,7 @@ python3 tasks-app.py scan [path]
 python3 tasks-app.py list [path]
 python3 tasks-app.py search <query> [path]
 python3 tasks-app.py stats [path]
+python3 tasks-app.py deps <taskId> [path]
 python3 tasks-app.py edit <taskId> [path]
 ```
 
@@ -40,13 +42,17 @@ No additional dependencies are required.
   - Matches task ID, status, tags, file path, or description
   - Displays the same output format as `list`
 
+- `deps <taskId> [path]`
+  - Shows the selected task plus tasks that depend on it
+  - Matches `#...` or numeric form for task IDs
+
 - `stats [path]`
   - Summarizes total tasks, tasks with IDs, tasks without IDs
   - Groups task counts by status and by tag
 
 - `edit <taskId> [path]`
   - Opens the task metadata editor for an existing task ID
-  - Supports `#T123`, `T123`, or `123` as the task identifier
+  - Supports `#123` or `123` as the task identifier
 
 ## Task format
 
@@ -62,7 +68,7 @@ Tasks are detected in either line-comment or block-comment form:
 
 Metadata supports:
 
-- `#T<n>` task ID
+- `#<n>` task ID
 - `status:<value>`
 - `tags:{tag1, tag2}`
 - `timestamp:<ISO timestamp>`

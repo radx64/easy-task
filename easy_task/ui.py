@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from .parsing import BLOCK_TASK_PATTERN, LINE_TASK_PATTERN, current_timestamp, parse_param_tokens
+from .parsing import BLOCK_TASK_PATTERN, LINE_TASK_PATTERN, current_timestamp, normalize_task_id, parse_param_tokens
 
 
 def _prompt_field(label: str, default: str) -> str | None:
@@ -10,7 +10,7 @@ def _prompt_field(label: str, default: str) -> str | None:
     return value or default
 
 
-def text_edit_dialog(file_path: Path, default_taskid, default_status, default_tags, default_timestamp, default_desc):
+def text_edit_dialog(file_path: Path, default_taskid, default_status, default_tags, default_timestamp, default_desc, default_depends_on):
     print(f"Editing TASK in: {file_path}")
     if default_desc:
         print("Description:")
@@ -30,12 +30,17 @@ def text_edit_dialog(file_path: Path, default_taskid, default_status, default_ta
     if tags_s is None:
         return None
 
+    depends_s = _prompt_field('Depends on (comma separated)', ', '.join(default_depends_on))
+    if depends_s is None:
+        return None
+
     timestamp = _prompt_field('Timestamp', default_timestamp)
     if timestamp is None:
         return None
 
     tags = [t.strip() for t in tags_s.split(',') if t.strip()]
-    return taskid, status, tags, default_desc, timestamp
+    depends_on = [normalize_task_id(t.strip()) for t in depends_s.split(',') if t.strip()]
+    return taskid, status, tags, default_desc, timestamp, depends_on
 
 
 def prompt_edit(file_path: Path, task_lines: list[str], next_id: int):
@@ -63,10 +68,10 @@ def prompt_edit(file_path: Path, task_lines: list[str], next_id: int):
         params = ''
         desc = ''
 
-    taskid, status, tags, timestamp = parse_param_tokens(params)
+    taskid, status, tags, timestamp, depends_on = parse_param_tokens(params)
     if not taskid:
-        taskid = f'#T{next_id}'
+        taskid = f'#{next_id}'
     if not timestamp:
         timestamp = current_timestamp()
 
-    return text_edit_dialog(file_path, taskid, status or 'new', tags, timestamp, desc)
+    return text_edit_dialog(file_path, taskid, status or 'new', tags, timestamp, desc, depends_on)
